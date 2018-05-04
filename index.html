@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>特质评价-中国校园在线</title>
+	<link rel="stylesheet" href="./css/base.css">
+	<script src="./js/jquery.min.js">
+	</script>
+	</script>
+</head>
+
+<body>
+	<div class="content">
+		<div class="header">
+			<div class="slide">
+				<div class="slide-bar on">
+					1
+				</div>
+				<div class="slide-info">
+					自我评价
+				</div>
+			</div>
+			<div class="link">
+				-
+			</div>
+			<div class="slide">
+				<div class="slide-bar">
+					2
+				</div>
+				<div class="slide-info">
+					家长对我评价
+				</div>
+			</div>
+			<div class="link">
+				-
+			</div>
+			<div class="slide">
+				<div class="slide-bar">
+					3
+				</div>
+				<div class="slide-info">
+					对同学评价
+				</div>
+			</div>
+		</div>
+		<div class="tip">
+			提示 ：<br> 同学你好，根据以下葡萄串里的标签选择符合的葡萄标签。
+		</div>
+		<div class="center">
+			<div class="pt">
+
+			</div>
+			<div class="sel" style="display:none">
+				<label>请选择要评价的同学：<br></label>
+				<select class="sel-student" name="">
+				</select>
+			</div>
+		</div>
+		<div class="sublime">
+			<span class="goto">下 一 步</span>
+		</div>
+		<div class="success" style="display:none">
+			已提交，感谢您的参与~
+		</div>
+	</div>
+	</div>
+
+	<script type="text/javascript">
+		$(function() {
+			jQuery.getURLParameters = function(url) {
+				return url.match(/([^?=&]+)(=([^&]*))/g).reduce(function(a, v) {
+					return a[v.slice(0, v.indexOf('='))] = v.slice(v.indexOf('=') + 1), a;
+				}, {});
+			};
+			var data = $.getURLParameters(location.href);
+			var host = '.test.com' //location.host.substring(4, location.host.length);
+			var apiUrl = 'http://api' + host;
+			var token = data.token;
+			var lesson_id = data.lesson_id;
+			var content_id = data.content_id;
+			var user_id = data.user_id;
+			var step = 1;
+			var sel1 = [];
+			var sel2 = [];
+			var sel3 = [];
+			var sel4 = '';
+			var stu = [];
+			$.ajax({
+				type: "post",
+				data: {
+					token: token
+				},
+				url: apiUrl + "/school/api/GrapeSpeciality/getGrapeSpeciality",
+				dataType: "json",
+				success: function(res) {
+					if (res.code == 1) {
+						var str = '';
+						for (var i = 0; i < res.data.length; i++) {
+							str += `<div class="pt-item" id="pt${i+1}" data-id="${res.data[i].id}">
+												<span class="txt">${res.data[i].name}</span>
+											</div>`
+						}
+						$(".pt").html(str);
+					} else {
+						alert("网络错误！")
+					}
+				}
+			});
+			$.ajax({
+				type: "post",
+				data: {
+					token: token,
+					lesson_id: lesson_id,
+					content_id: content_id,
+				},
+				url: apiUrl + "/school/api/GrapeSpeciality/chkStep",
+				dataType: "json",
+				success: function(res) {
+					if (res.code == 1) {
+						stu = res.data.stu_options;
+						var str = '';
+						for (var i = 0; i < stu.length; i++) {
+							str += `<option value="${stu[i].user_id}">${stu[i].stu_name}</option>`
+						}
+						$(".sel-student").html(str);
+						if (res.data.next_type == 2) {
+							step = 2;
+							$(".slide-bar").eq(1).addClass("on");
+						} else if (res.data.next_type == 3) {
+							$(".slide-bar").eq(1).addClass("on");
+							$(".slide-bar").eq(2).addClass("on");
+							if (stu.length == 1) {
+								step = 4;
+								sel4 = res.data.stu_options[0].user_id;
+								$("body").css("background-image", "url('./img/bg.png')");
+								$(".tip").show();
+								$(".sel").hide();
+								$(".pt").show();
+								$(".goto").text("提 交 评 价")
+							} else {
+								step = 3;
+								$(".slide-bar").eq(step).addClass("on");
+								$(".pt-item").removeClass("act");
+								$("body").css("background-image", "url('./img/bg2.png')");
+								$(".pt").hide();
+								$(".tip").hide();
+								$(".sel").show();
+							}
+						}
+					} else {
+						alert(res.msg);
+						success();
+					}
+				}
+			});
+			$('.pt').on('click', '.pt-item', function() {
+				$(this).toggleClass("act");
+			});
+			$('.goto').click(function() {
+				var l = $(".act");
+				if (l.length == 0 && step != 3) {
+					alert('请选择特质')
+				} else {
+					if (step == 1) {
+						for (var a = 0; a < l.length; a++) {
+							var s = l.eq(a).attr('data-id');
+							sel1.push(s);
+						}
+						$.ajax({
+							type: "post",
+							data: {
+								token: token,
+								speciality: sel1.join(","),
+								type: 1,
+								user_id_to: user_id,
+								lesson_id: lesson_id,
+								content_id: content_id
+							},
+							url: apiUrl + "/school/api/GrapeSpeciality/addSpeciality",
+							dataType: "json",
+							success: function(res) {
+								if (res.code == -1) {
+									alert(res.msg)
+								} else {
+									$(".slide-bar").eq(step).addClass("on");
+									$(".pt-item").removeClass("act");
+									step++;
+									$("html,body").animate({
+										scrollTop: 0
+									}, 300);
+								}
+							}
+						})
+					} else if (step == 2) {
+						for (var b = 0; b < l.length; b++) {
+							var x = l.eq(b).attr('data-id');
+							sel2.push(x);
+						}
+						$.ajax({
+							type: "post",
+							data: {
+								token: token,
+								speciality: sel2.join(","),
+								type: 2,
+								user_id_to: user_id,
+								lesson_id: lesson_id,
+								content_id: content_id
+							},
+							url: apiUrl + "/school/api/GrapeSpeciality/addSpeciality",
+							dataType: "json",
+							success: function(res) {
+								if (res.code == -1) {
+									alert(res.msg)
+								} else {
+									$(".slide-bar").eq(step).addClass("on");
+									$(".pt-item").removeClass("act");
+									step++;
+									$("html,body").animate({
+										scrollTop: 0
+									}, 300);
+									$("body").css("background-image", "url('./img/bg2.png')");
+									$(".pt").hide();
+									$(".tip").hide();
+									$(".sel").show();
+								}
+							}
+						})
+					} else if (step == 3) {
+						sel4 = $(".sel-student").val();
+						if (sel4 == '') {
+							alert("提交失败")
+						} else {
+							$.ajax({
+								type: "post",
+								data: {
+									token: token,
+									lesson_id: lesson_id,
+									content_id: content_id,
+									user_id_from: user_id,
+									user_id_to: sel4
+								},
+								url: apiUrl + "/school/api/GrapeSpeciality/chooseOtherStu",
+								dataType: "json",
+								success: function(res) {
+									if (res.code == 1) {
+										$("html,body").animate({
+											scrollTop: 0
+										}, 300);
+										$("body").css("background-image", "url('./img/bg.png')");
+										$(".tip").show();
+										$(".sel").hide();
+										$(".pt").show();
+										$(".goto").text("提 交 评 价")
+										step++;
+									} else {
+										alert(res.msg);
+									}
+								}
+							});
+						}
+					} else if (step == 4) {
+						for (var c = 0; c < l.length; c++) {
+							var z = l.eq(c).attr('data-id');
+							sel3.push(z);
+						}
+						$(".slide-bar").eq(step).addClass("on");
+						$(".pt-item").removeClass("act");
+						$.ajax({
+							type: "post",
+							data: {
+								token: token,
+								speciality: sel3.join(","),
+								type: 3,
+								user_id_to: sel4,
+								lesson_id: lesson_id,
+								content_id: content_id
+							},
+							url: apiUrl + "/school/api/GrapeSpeciality/addSpeciality",
+							dataType: "json",
+							success: function(res) {
+								if (res.code == -1) {
+									alert(res.msg);
+								} else {
+									$("html,body").animate({
+										scrollTop: 0
+									}, 300);
+									success(res.msg)
+								}
+							}
+						})
+					} else {
+						return
+					}
+				}
+			});
+
+			function success(msg) {
+				$("body").css("background-image", "url('./img/bg2.png')");
+				$(".tip").hide();
+				$(".sublime").hide();
+				$(".center").hide();
+				$(".header").hide();
+				$(".success").show();
+			}
+		})
+	</script>
+</body>
+
+</html>
